@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastotracker-v2';
+const CACHE_NAME = 'gastotracker-v3';
 const ASSETS = [
   '/',
   '/index.html',
