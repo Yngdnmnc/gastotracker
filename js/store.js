@@ -208,6 +208,23 @@ const Store = (() => {
     });
   }
 
+  // ─── Import from Sheets (merge by ID) ───
+
+  async function importCharges(charges) {
+    const existing = await getAll();
+    const existingIds = new Set(existing.map((c) => c.id));
+    let imported = 0;
+
+    for (const c of charges) {
+      if (!c.id || existingIds.has(c.id)) continue;
+      if (!c.merchant && !c.amount) continue;
+      await add(c);
+      imported++;
+    }
+
+    return imported;
+  }
+
   // ─── UUID ───
 
   function uuid() {
@@ -220,6 +237,6 @@ const Store = (() => {
     totals, stats,
     getSheetsURL, setSheetsURL,
     getIdentity, setIdentity, isDuplicate,
-    uuid,
+    importCharges, uuid,
   };
 })();
