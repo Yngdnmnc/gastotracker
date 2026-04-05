@@ -8,42 +8,38 @@ const Scanner = (() => {
   // ─── Known Mercado Pago labels to skip when searching for merchant ───
 
   const SKIP_PATTERNS = [
-    /^visa\s+cr[eé]dito$/i,
-    /^mastercard\s+cr[eé]dito$/i,
-    /^visa\s+d[eé]bito$/i,
-    /^mastercard\s+d[eé]bito$/i,
-    /^pago\s+en\s+tienda\s+f[ií]sica$/i,
+    /visa\s*cr[eé]dit/i,
+    /mastercard/i,
+    /visa\s*d[eé]bit/i,
+    /pago\s+en\s+tienda/i,
     /^compra$/i,
     /^transferencia$/i,
-    /^pago\s+de\s+servicio$/i,
+    /pago\s+de\s+servicio/i,
     /^recarga$/i,
-    /^devoluci[oó]n$/i,
+    /devoluci[oó]n/i,
     /^\d{1,2}:\d{2}\s*hs?\.?$/i,
-    /^@?\s*visa/i,
-    /^@?\s*mastercard/i,
-    /^pagos?\s+y\s+compras?$/i,
+    /pagos?\s+y\s+compras?/i,
     /^ventas?$/i,
     /^filtros?$/i,
     /^buscar$/i,
     /^actividad$/i,
     /^inicio$/i,
-    /^notificaciones?$/i,
+    /notificacion/i,
     /^m[aá]s$/i,
+    /^\d{1,2}:\d{2}$/,
+    /^Q\s/,
   ];
 
   function isSkipLabel(text) {
     const t = text.trim();
-    if (t.length <= 1) return true;
+    if (t.length <= 2) return true;
     return SKIP_PATTERNS.some((re) => re.test(t));
   }
 
-  // ─── Check if "visa crédito" appears near a transaction ───
+  // ─── Check if entire OCR text mentions "visa" (global check) ───
 
-  function hasVisaCredito(lines, idx) {
-    for (let j = Math.max(0, idx - 5); j <= Math.min(lines.length - 1, idx + 3); j++) {
-      if (/visa\s+cr[eé]dito/i.test(lines[j])) return true;
-    }
-    return false;
+  function textHasVisa(fullText) {
+    return /visa/i.test(fullText);
   }
 
   // ─── Run OCR on an image element or blob URL ───
@@ -71,17 +67,18 @@ const Scanner = (() => {
     'julio': 6, 'agosto': 7, 'septiembre': 8, 'octubre': 9, 'noviembre': 10, 'diciembre': 11,
   };
 
-  const amountRegex = /[-—–]?\s*\$\s*[-—–]?\s*([\d.,]+)/;
-  const dateRegex = /(\d{1,2})\s*(?:de\s+)?(\w{3,})\s*\.?/i;
+  // Match amounts: -$824,50  -$1.462  -$ 2.212,75
+  const amountRegex = /[-—–]\s*\$\s*([\d.,]+)/;
+  const dateRegex = /^(\d{1,2})\s*(?:de\s+)?(\w{3,})\s*\.?$/i;
   const todayRegex = /^hoy$/i;
   const yesterdayRegex = /^ayer$/i;
-  const timeRegex = /^\d{1,2}:\d{2}\s*hs?\.?$/i;
+  const timeRegex = /\d{1,2}:\d{2}\s*hs?\.?/i;
 
   function isDateLine(text) {
     const t = text.trim();
     if (todayRegex.test(t) || yesterdayRegex.test(t)) return true;
-    const m = t.match(dateRegex);
-    if (m && t.length < 25) {
+    const m = t.match(/^(\d{1,2})\s*(?:de\s+)?(\w{3,})\s*\.?$/i);
+    if (m) {
       const monthStr = m[2].toLowerCase().replace('.', '');
       return monthMap[monthStr] !== undefined;
     }
@@ -96,7 +93,7 @@ const Scanner = (() => {
     if (yesterdayRegex.test(t)) {
       const d = new Date(); d.setDate(d.getDate() - 1); d.setHours(12, 0, 0, 0); return d;
     }
-    const m = t.match(dateRegex);
+    const m = t.match(/(\d{1,2})\s*(?:de\s+)?(\w{3,})/i);
     if (m) {
       const day = parseInt(m[1]);
       const monthStr = m[2].toLowerCase().replace('.', '');
@@ -115,7 +112,10 @@ const Scanner = (() => {
     const lines = ocrText.split('\n').map((l) => l.trim()).filter(Boolean);
     const transactions = [];
 
-    // Track the current date header as we scan top-down
+    // If OCR text contains "visa" anywhere, it's a Visa crédito view.
+    // If not, include all transactions anyway (OCR might have missed it).
+    // The user filters the screenshots they upload.
+
     let currentDate = null;
 
     for (let i = 0; i < lines.length; i++) {
@@ -127,48 +127,68 @@ const Scanner = (() => {
         continue;
       }
 
-      // Look for amount patterns
+      // Look for amount patterns (must have a negative sign = expense)
       const amountMatch = line.match(amountRegex);
       if (!amountMatch) continue;
 
       const amount = parseAmount(amountMatch[1]);
       if (!amount || amount <= 0) continue;
 
-      // Only include Visa crédito transactions
-      if (!hasVisaCredito(lines, i)) continue;
-
       // Determine currency
       const isUSD = /US\$|U\$S|USD/i.test(line);
       const currency = isUSD ? 'USD' : 'UY$';
 
-      // Find merchant by looking backwards, skipping known labels
+      // ── Extract merchant ──
       let merchant = null;
       let txDate = currentDate;
 
-      for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
-        const prev = lines[j].trim();
-
-        // Stop if we hit another amount (different transaction)
-        if (amountRegex.test(prev)) break;
-
-        // Stop if we hit a time from previous transaction
-        if (timeRegex.test(prev)) break;
-
-        // If it's a date header, grab it and stop
-        if (isDateLine(prev)) {
-          if (!txDate) txDate = parseDateFromLine(prev);
-          break;
+      // CASE 1: Merchant is on the SAME line, before the $ sign
+      // e.g., "Frog -$824,50" or "Mercado Libre -$ 2.212,75"
+      const dollarIdx = line.indexOf('$');
+      if (dollarIdx > 2) {
+        let prefix = line.substring(0, dollarIdx).trim();
+        // Remove trailing dash/negative
+        prefix = prefix.replace(/[-—–\s]+$/, '').trim();
+        if (prefix.length > 1 && !isSkipLabel(prefix) && !/^\d+$/.test(prefix)) {
+          merchant = cleanMerchant(prefix);
         }
+      }
 
-        // Skip known labels
-        if (isSkipLabel(prev)) continue;
+      // CASE 2: Look backwards through previous lines
+      if (!merchant) {
+        for (let j = i - 1; j >= Math.max(0, i - 6); j--) {
+          const prev = lines[j].trim();
 
-        // Skip if it's an amount-like line
-        if (amountRegex.test(prev)) continue;
+          // Stop if we hit another amount (different transaction)
+          if (amountRegex.test(prev)) break;
 
-        // This should be the merchant name
-        if (!merchant && prev.length > 1 && !/^\d+$/.test(prev)) {
-          merchant = cleanMerchant(prev);
+          // Stop if we hit a time from previous transaction
+          if (timeRegex.test(prev) && prev.length < 12) break;
+
+          // If it's a date header, grab it if needed and stop
+          if (isDateLine(prev)) {
+            if (!txDate) txDate = parseDateFromLine(prev);
+            break;
+          }
+
+          // Skip known labels
+          if (isSkipLabel(prev)) continue;
+
+          // This should be the merchant name
+          if (prev.length > 1 && !/^\d+$/.test(prev)) {
+            merchant = cleanMerchant(prev);
+            break;
+          }
+        }
+      }
+
+      // CASE 3: Also check the line immediately ABOVE for date if we haven't set one
+      if (!txDate) {
+        for (let j = i - 1; j >= Math.max(0, i - 5); j--) {
+          if (isDateLine(lines[j])) {
+            txDate = parseDateFromLine(lines[j]);
+            break;
+          }
         }
       }
 
