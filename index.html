@@ -11,6 +11,7 @@
   <link rel="manifest" href="manifest.json">
   <link rel="apple-touch-icon" href="icons/icon-192.svg">
   <link rel="stylesheet" href="css/style.css">
+  <script src="https://cdn.jsdelivr.net/npm/tesseract.js@5/dist/tesseract.min.js"></script>
 </head>
 <body>
   <div id="app">
@@ -128,6 +129,50 @@
       </div>
     </main>
 
+    <!-- ═══ Tab: Escanear ═══ -->
+    <main id="page-scan" class="page">
+      <div class="form-container">
+        <h2>Escanear Captura</h2>
+        <p class="hint" style="margin-bottom:16px">Subí una captura de Mercado Pago para extraer los gastos automáticamente. La imagen no se almacena.</p>
+
+        <div class="scan-upload-area" id="scan-upload-area">
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+          <p>Tocá para subir una captura</p>
+          <p class="hint">o arrastrá la imagen aquí</p>
+          <input type="file" id="scan-file-input" accept="image/*" hidden>
+        </div>
+
+        <!-- Preview -->
+        <div id="scan-preview" class="scan-preview hidden">
+          <img id="scan-preview-img" alt="Preview">
+          <button id="scan-remove-img" class="icon-btn scan-remove">✕</button>
+        </div>
+
+        <!-- Progress -->
+        <div id="scan-progress" class="scan-progress hidden">
+          <div class="scan-progress-bar">
+            <div id="scan-progress-fill" class="scan-progress-fill"></div>
+          </div>
+          <p id="scan-progress-text">Procesando imagen...</p>
+        </div>
+
+        <!-- Results -->
+        <div id="scan-results" class="scan-results hidden">
+          <h3 id="scan-results-title">Gastos encontrados</h3>
+          <div id="scan-results-list"></div>
+          <button id="scan-save-all" class="save-btn" style="margin-top:12px">Guardar todos</button>
+        </div>
+
+        <button id="scan-btn" class="save-btn" style="margin-top:12px" disabled>Escanear imagen</button>
+      </div>
+
+      <!-- Toast reutilizado -->
+      <div id="scan-toast" class="toast hidden">
+        <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#22c55e" stroke-width="2.5"><path d="M20 6 9 17l-5-5"/></svg>
+        <span id="scan-toast-text">¡Gastos importados!</span>
+      </div>
+    </main>
+
     <!-- ═══ Tab: Ajustes ═══ -->
     <main id="page-settings" class="page">
       <div class="form-container">
@@ -164,6 +209,17 @@
 
         <hr>
 
+        <div class="form-group">
+          <label>¿Quién sos?</label>
+          <div class="option-toggle">
+            <button class="identity-btn option-btn" data-identity="Agustín">Agustín</button>
+            <button class="identity-btn option-btn" data-identity="Danna">Danna</button>
+          </div>
+          <p class="hint">Los gastos escaneados se asignan automáticamente a esta persona.</p>
+        </div>
+
+        <hr>
+
         <button id="clear-btn" class="save-btn danger">Borrar todos los gastos</button>
         <p class="hint">Los datos ya sincronizados en Google Sheets no se borran.</p>
 
@@ -183,6 +239,10 @@
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v8M8 12h8"/></svg>
         <span>Agregar</span>
       </button>
+      <button class="tab" data-page="page-scan">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="18" rx="2"/><circle cx="8.5" cy="8.5" r="1.5"/><path d="m21 15-5-5L5 21"/></svg>
+        <span>Escanear</span>
+      </button>
       <button class="tab" data-page="page-settings">
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.68a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
         <span>Ajustes</span>
@@ -201,8 +261,21 @@
     </div>
   </div>
 
+  <!-- Identity prompt overlay -->
+  <div id="identity-overlay" class="modal-overlay hidden">
+    <div class="modal">
+      <p style="font-size:18px;font-weight:700;margin-bottom:4px">¡Hola!</p>
+      <p>¿Quién sos?</p>
+      <div class="modal-actions" style="margin-top:16px">
+        <button class="modal-btn identity-pick" data-identity="Agustín" style="background:var(--accent);color:#fff">Agustín</button>
+        <button class="modal-btn identity-pick" data-identity="Danna" style="background:var(--accent);color:#fff">Danna</button>
+      </div>
+    </div>
+  </div>
+
   <script src="js/store.js"></script>
   <script src="js/sheets.js"></script>
+  <script src="js/scanner.js"></script>
   <script src="js/app.js"></script>
 </body>
 </html>
