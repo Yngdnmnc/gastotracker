@@ -11,6 +11,17 @@
   // ─── Init Store ───
   await Store.init();
 
+  // ─── Auto-restore from Sheets if local DB is empty ───
+  try {
+    const all = await Store.getAll();
+    if (all.length === 0 && Store.getSheetsURL()) {
+      const charges = await Sheets.download();
+      if (charges.length > 0) {
+        await Store.importCharges(charges);
+      }
+    }
+  } catch { /* silently skip if offline */ }
+
   // ─── State ───
   let currentMonth = new Date();
   let filterSource = null;
@@ -358,6 +369,26 @@
     btn.textContent = 'Sincronizar pendientes';
     refreshSettings();
     refreshSyncBadge();
+  });
+
+  $('#restore-btn').addEventListener('click', async () => {
+    const btn = $('#restore-btn');
+    btn.disabled = true;
+    btn.textContent = 'Descargando...';
+    try {
+      const charges = await Sheets.download();
+      const imported = await Store.importCharges(charges);
+      alert(imported > 0
+        ? `${imported} gastos restaurados ✓`
+        : 'No hay gastos nuevos para importar. Ya están todos en la app.');
+      refreshSettings();
+      refreshList();
+      refreshSyncBadge();
+    } catch (err) {
+      alert('Error al restaurar: ' + err.message);
+    }
+    btn.disabled = false;
+    btn.textContent = '↓ Restaurar desde Google Sheets';
   });
 
   $('#clear-btn').addEventListener('click', () => {
