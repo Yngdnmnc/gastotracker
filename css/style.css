@@ -652,3 +652,145 @@ hr {
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* ─── Scanner Page ─── */
+
+.scan-upload-area {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  padding: 40px 20px;
+  border: 2px dashed var(--bg-hover);
+  border-radius: var(--radius);
+  background: var(--bg-card);
+  cursor: pointer;
+  transition: border-color 0.2s, background 0.2s;
+  text-align: center;
+  color: var(--text-secondary);
+}
+
+.scan-upload-area.dragover {
+  border-color: var(--accent);
+  background: rgba(59, 130, 246, 0.08);
+}
+
+.scan-upload-area p {
+  font-size: 14px;
+}
+
+.scan-preview {
+  position: relative;
+  margin-top: 12px;
+  border-radius: var(--radius);
+  overflow: hidden;
+  background: var(--bg-card);
+}
+
+.scan-preview img {
+  width: 100%;
+  max-height: 300px;
+  object-fit: contain;
+  display: block;
+}
+
+.scan-remove {
+  position: absolute;
+  top: 8px;
+  right: 8px;
+  background: rgba(0,0,0,0.6);
+  color: #fff;
+  border-radius: 50%;
+  width: 32px;
+  height: 32px;
+  font-size: 16px;
+}
+
+.scan-progress {
+  margin-top: 16px;
+}
+
+.scan-progress-bar {
+  height: 6px;
+  background: var(--bg-input);
+  border-radius: 3px;
+  overflow: hidden;
+}
+
+.scan-progress-fill {
+  height: 100%;
+  background: var(--accent);
+  border-radius: 3px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+.scan-progress p {
+  font-size: 13px;
+  color: var(--text-secondary);
+  margin-top: 6px;
+  text-align: center;
+}
+
+.scan-results {
+  margin-top: 16px;
+}
+
+.scan-results h3 {
+  font-size: 16px;
+  font-weight: 600;
+  margin-bottom: 10px;
+}
+
+.scan-result-item {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px;
+  background: var(--bg-card);
+  border-radius: var(--radius-sm);
+  margin-bottom: 8px;
+}
+
+.scan-result-item.duplicate {
+  opacity: 0.45;
+}
+
+.scan-result-item input[type="checkbox"] {
+  width: 20px;
+  height: 20px;
+  flex-shrink: 0;
+  accent-color: var(--accent);
+}
+
+.scan-result-info {
+  flex: 1;
+  min-width: 0;
+}
+
+.scan-result-merchant {
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scan-result-meta {
+  font-size: 12px;
+  color: var(--text-secondary);
+  margin-top: 2px;
+}
+
+.scan-result-amount {
+  font-size: 15px;
+  font-weight: 700;
+  flex-shrink: 0;
+}
+
+.scan-result-dup-label {
+  font-size: 11px;
+  color: var(--orange);
+  font-weight: 600;
+}
