@@ -172,6 +172,42 @@ const Store = (() => {
     saveSetting('sheetsURL', url);
   }
 
+  // ─── Identity ───
+
+  function getIdentity() {
+    return getSettings().identity || '';
+  }
+
+  function setIdentity(name) {
+    saveSetting('identity', name);
+  }
+
+  // ─── Duplicate detection ───
+  // Same amount + merchant (case-insensitive) + same date (day) within the same week
+
+  async function isDuplicate(charge) {
+    const all = await getAll();
+    const chargeDate = new Date(charge.date);
+    const weekStart = new Date(chargeDate);
+    weekStart.setDate(weekStart.getDate() - weekStart.getDay());
+    weekStart.setHours(0, 0, 0, 0);
+    const weekEnd = new Date(weekStart);
+    weekEnd.setDate(weekEnd.getDate() + 7);
+
+    const chargeDayStr = chargeDate.toISOString().slice(0, 10);
+    const merchantLower = (charge.merchant || '').toLowerCase().trim();
+
+    return all.some((c) => {
+      const d = new Date(c.date);
+      if (d < weekStart || d >= weekEnd) return false;
+      const dayStr = d.toISOString().slice(0, 10);
+      if (dayStr !== chargeDayStr) return false;
+      if (Math.abs(c.amount - charge.amount) > 0.01) return false;
+      if ((c.merchant || '').toLowerCase().trim() !== merchantLower) return false;
+      return true;
+    });
+  }
+
   // ─── UUID ───
 
   function uuid() {
@@ -182,6 +218,8 @@ const Store = (() => {
     init, add, update, remove, getAll, clearAll,
     getByMonth, getUnsynced, markSynced,
     totals, stats,
-    getSheetsURL, setSheetsURL, uuid,
+    getSheetsURL, setSheetsURL,
+    getIdentity, setIdentity, isDuplicate,
+    uuid,
   };
 })();
