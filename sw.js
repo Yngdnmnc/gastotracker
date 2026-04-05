@@ -1,4 +1,4 @@
-const CACHE_NAME = 'gastotracker-v1';
+const CACHE_NAME = 'gastotracker-v2';
 const ASSETS = [
   '/',
   '/index.html',
@@ -6,6 +6,7 @@ const ASSETS = [
   '/js/app.js',
   '/js/store.js',
   '/js/sheets.js',
+  '/js/scanner.js',
   '/manifest.json'
 ];
 
