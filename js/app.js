@@ -536,6 +536,10 @@
     const identity = Store.getIdentity() || 'Agustín';
     let saved = 0;
 
+    const btn = $('#scan-save-all');
+    btn.disabled = true;
+    btn.textContent = 'Guardando...';
+
     for (const cb of checkboxes) {
       if (!cb.checked) continue;
       const idx = parseInt(cb.dataset.idx);
@@ -555,11 +559,13 @@
       };
 
       await Store.add(charge);
-      await Sheets.uploadAndMark(charge);
       saved++;
     }
 
+    // Single batch sync to avoid duplicate uploads
     if (saved > 0) {
+      try { await Sheets.syncAll(); } catch {}
+
       const toast = $('#scan-toast');
       $('#scan-toast-text').textContent = `¡${saved} gasto(s) importado(s)!`;
       toast.classList.remove('hidden');
@@ -572,6 +578,9 @@
       resetScanUI();
       refreshSyncBadge();
     }
+
+    btn.disabled = false;
+    btn.textContent = 'Guardar todos';
   });
 
   // ═══════════════════════════════════════════
